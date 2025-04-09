@@ -3,26 +3,30 @@ using System.Collections;
 
 public class EggCrackManager : MonoBehaviour
 {
-    public GameObject eggBase;              // Oul intact
-    public GameObject eggShardParent;
-    public SpriteRenderer[] crackStages;    // Sprite-uri care se vor face fade-in
-    public GameObject character;            // Personajul 3D
-    public float fadeDuration = 0.5f;       // Durată fade-in
+    public GameObject eggBase;              // The intact egg model shown at the beginning
+    public GameObject eggShardParent;       // Parent object that contains all broken egg shell pieces
+    public SpriteRenderer[] crackStages;    // An array of crack sprites to be shown one by one with fade-in effect
+    public GameObject character;            // The 3D character that appears after the egg breaks
+    public float fadeDuration = 0.5f;       // Time in seconds to fully fade in each crack sprite
 
     private int tapCount = 0;
     private bool isRevealing = false;
-    public Vector3 targetScale = Vector3.one;
+    public Vector3 targetScale = Vector3.one;   // Target scale for the character during the reveal animation
 
-    public float explosionForce = 300f;
-    public float explosionRadius = 2f;
-    public Vector3 explosionOriginOffset = Vector3.up * 0.2f;
+    public float explosionForce = 300f;     // Force applied to egg pieces during the explosion
+    public float explosionRadius = 2f;      // Radius of the explosion effect
+    public Vector3 explosionOriginOffset = Vector3.up * 0.2f;  // Position offset from the center of the egg for the explosion origin
 
-    void Start()
+    /// <summary>
+    /// Activates the intact egg and hides the character
+    /// Hides all crack sprites and sets their alpha to 0
+    /// </summary>
+    private void Start()
     {
         eggBase.SetActive(true);
         character.SetActive(false);
 
-        // Setăm alpha 0 pentru toate crăpăturile la început
+        // We set alpha 0 for all cracks at the beginning
         foreach (var crack in crackStages)
         {
             SetAlpha(crack, 0f);
@@ -30,7 +34,11 @@ public class EggCrackManager : MonoBehaviour
         }
     }
 
-    void Update()
+    /// <summary>
+    /// Listens for input (mouse click or touch)
+    /// If the character is being revealed, triggers a scale-up animation
+    /// </summary>
+    private void Update()
     {
         HandleInput();
 
@@ -38,7 +46,11 @@ public class EggCrackManager : MonoBehaviour
             AnimateCharacterAppearance();
     }
 
-    void HandleInput()
+    /// <summary>
+    /// Detects mouse clicks (in Editor) or touches (on mobile)
+    /// Sends screen position to TryTapEgg()
+    /// </summary>
+    private void HandleInput()
     {
 #if UNITY_EDITOR
         if (Input.GetMouseButtonDown(0))
@@ -49,7 +61,12 @@ public class EggCrackManager : MonoBehaviour
 #endif
     }
 
-    void TryTapEgg(Vector2 screenPosition)
+    /// <summary>
+    /// Performs a Raycast from the screen position
+    /// If the user taps on the egg (Tag = "Egg"), triggers TapEgg()
+    /// </summary>
+    /// <param name="screenPosition"></param>
+    private void TryTapEgg(Vector2 screenPosition)
     {
         Ray ray = Camera.main.ScreenPointToRay(screenPosition);
 
@@ -62,7 +79,14 @@ public class EggCrackManager : MonoBehaviour
         }
     }
 
-    void TapEgg()
+    /// <summary>
+    /// Activates the next crack sprite
+    /// Starts a fade-in coroutine
+    /// Increments the tapCount
+    /// Plays a crack sound using AudioManager.Instance.PlayCrackSound()
+    /// If all cracks are revealed: Calls RevealCharacter()
+    /// </summary>
+    private void TapEgg()
     {
         if (tapCount < crackStages.Length)
         {
@@ -78,7 +102,12 @@ public class EggCrackManager : MonoBehaviour
         }
     }
 
-    void RevealCharacter()
+    /// <summary>
+    /// Hides the intact egg and all crack sprites
+    /// Activates the shattered egg pieces and triggers their explosion
+    /// Activates the character and starts a scale-up animation
+    /// </summary>
+    private void RevealCharacter()
     {
         eggBase.SetActive(false);
         ExplodeEggShells();
@@ -92,8 +121,11 @@ public class EggCrackManager : MonoBehaviour
         character.transform.localScale = Vector3.zero;
         isRevealing = true;
     }
-
-    void AnimateCharacterAppearance()
+    /// <summary>
+    /// Gradually scales the character from Vector3.zero to Vector3.one using Lerp()
+    /// When the target size is reached, stops the animation
+    /// </summary>
+    private void AnimateCharacterAppearance()
     {
         character.transform.localScale = Vector3.Lerp(
             character.transform.localScale,
@@ -108,7 +140,12 @@ public class EggCrackManager : MonoBehaviour
         }
     }
 
-    IEnumerator FadeIn(SpriteRenderer sprite)
+    /// <summary>
+    /// Smoothly fades in a crack sprite by increasing its alpha from 0 to 1 over fadeDuration seconds
+    /// </summary>
+    /// <param name="sprite"></param>
+    /// <returns></returns>
+    private IEnumerator FadeIn(SpriteRenderer sprite)
     {
         float elapsed = 0f;
         Color c = sprite.color;
@@ -127,16 +164,25 @@ public class EggCrackManager : MonoBehaviour
         sprite.color = c;
     }
 
-    void SetAlpha(SpriteRenderer sprite, float alpha)
+    /// <summary>
+    /// Manually sets a sprite’s transparency level
+    /// </summary>
+    /// <param name="sprite"></param>
+    /// <param name="alpha"></param>
+    private void SetAlpha(SpriteRenderer sprite, float alpha)
     {
         Color c = sprite.color;
         c.a = alpha;
         sprite.color = c;
     }
 
-    void ExplodeEggShells()
+    /// <summary>
+    /// Activates all shell fragments (eggShardParent)
+    /// For each child object: Enables physics (isKinematic = false), Applies an explosion force via AddExplosionForce() to simulate shell breakage and scattering
+    /// </summary>
+    private void ExplodeEggShells()
     {
-        eggShardParent.SetActive(true); // Activezi cojile
+        eggShardParent.SetActive(true); // Activate the shells
 
         foreach (Transform shard in eggShardParent.transform)
         {
@@ -144,7 +190,7 @@ public class EggCrackManager : MonoBehaviour
 
             if (rb != null)
             {
-                rb.isKinematic = false; // Permite fizica
+                rb.isKinematic = false; // It allows physics
                 rb.AddExplosionForce(explosionForce, eggShardParent.transform.position + explosionOriginOffset, explosionRadius, 0.2f, ForceMode.Impulse);
             }
         }
